@@ -72,7 +72,7 @@ cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5 && make -j4 && cd ..
 mkdir -p "${WHEELS_DIR}"
 
 cd python
-pip install build
+python -m pip install build
 python -m build --wheel --outdir "${WHEELS_DIR}"
 cd ..
 

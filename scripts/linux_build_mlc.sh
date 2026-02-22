@@ -126,7 +126,7 @@ cmake --build . --parallel ${NCORES}
 mkdir -p "${WHEELS_DIR}"
 
 cd ../python
-pip install build
+python -m pip install build
 python -m build --wheel --outdir "${WHEELS_DIR}"
 cd ../build
 
