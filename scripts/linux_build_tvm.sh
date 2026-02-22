@@ -53,7 +53,7 @@ sed -i 's/set(USE_CUTLASS .*/set(USE_CUTLASS OFF)/' config.cmake # known compile
 sed -i 's/set(USE_THRUST .*/set(USE_THRUST OFF)/' config.cmake # known CHECK macro errors
 sed -i 's/set(USE_NVTX .*/set(USE_NVTX OFF)/' config.cmake
 
-cmake .. && make -j4 && cd ..
+cmake .. && make -j$(nproc) && cd ..
 
 # Build wheels and copy to wheels directory
 mkdir -p "${WHEELS_DIR}"
