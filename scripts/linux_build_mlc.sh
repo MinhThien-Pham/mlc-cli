@@ -121,10 +121,10 @@ cmake --build . --parallel ${NCORES}
 # Build wheel and copy to wheels directory
 mkdir -p "${WHEELS_DIR}"
 
-cd python
+cd ../python
 pip install build
 python -m build --wheel --outdir "${WHEELS_DIR}"
-cd ..
+cd ../build
 
 echo "MLC-LLM wheel created in ${WHEELS_DIR}"
 
