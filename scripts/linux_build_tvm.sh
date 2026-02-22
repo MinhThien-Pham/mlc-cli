@@ -50,7 +50,7 @@ sed -i 's/set(USE_OPENCL .*/set(USE_OPENCL OFF)/' config.cmake
 sed -i "s/set(CMAKE_CUDA_ARCHITECTURES .*/set(CMAKE_CUDA_ARCHITECTURES ${CUDA_COMPUTE_CAPABILITY})/" config.cmake
 sed -i 's/set(USE_CUBLAS .*/set(USE_CUBLAS ON)/' config.cmake
 sed -i 's/set(USE_CUTLASS .*/set(USE_CUTLASS ON)/' config.cmake
-sed -i 's/set(USE_THRUST .*/set(USE_THRUST ON)/' config.cmake
+sed -i 's/set(USE_THRUST .*/set(USE_THRUST OFF)/' config.cmake # known CHECK macro errors
 sed -i 's/set(USE_NVTX .*/set(USE_NVTX OFF)/' config.cmake
 
 cmake .. && make -j4 && cd ..
