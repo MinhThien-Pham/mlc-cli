@@ -13,6 +13,7 @@ VULKAN="${6:-n}"
 OPENCL="${7:-n}"
 FLASHINFER="${8:-n}"
 CUDA_ARCH="${9:-86}"
+GITHUB_REPO="${10:-https://github.com/mlc-ai/mlc-llm}" # Adds a GITHUB_REPO parameter
 
 # Variables
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -33,8 +34,9 @@ echo "${BUILD_VENV} environment created successfully"
 
 # Check if mlc-llm directory exists
 if [ ! -d "mlc-llm" ]; then
+    git clone --recursive "${GITHUB_REPO}" mlc-llm # Clones mlc-llm into ./mlc-llm when the directory is missing.
+else
     echo "Error: mlc-llm directory not found. Please clone the repository first."
-    exit 1
 fi
 
 conda activate ${BUILD_VENV}
