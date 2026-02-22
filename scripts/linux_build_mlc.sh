@@ -75,6 +75,10 @@ printf "%s\n%s\n%s\n%s\n%s\n%s\nn\n%s\n%s\n\n\n" \
     "${OPENCL}" \
     "${FLASHINFER}" | python3 ../cmake/gen_cmake_config.py
 
+# Inject CUDA_ARCHITECTURES into config.cmake so cmake 3.28 sees it before enable_language(CUDA)
+if [[ "$CUDA" == "y" ]]; then
+    echo "set(CMAKE_CUDA_ARCHITECTURES ${CUDA_ARCH} CACHE STRING \"CUDA architectures\" FORCE)" >> config.cmake
+fi
 if [[ "$CUDA" == "y" ]]; then
     echo "Configuring with CUDA support..."
     # Dynamically find nvcc
