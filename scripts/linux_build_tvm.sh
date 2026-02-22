@@ -23,7 +23,7 @@ export DYLD_LIBRARY_PATH="$CONDA_PREFIX/lib:$DYLD_LIBRARY_PATH"
 
 # clone from GitHub (or use existing)
 if [ ! -d "tvm" ]; then
-    git clone --recursive https://github.com/apache/tvm.git
+    git clone --recursive -b mlc https://github.com/mlc-ai/relax.git tvm
 fi
 cd tvm
 # create the build directory
