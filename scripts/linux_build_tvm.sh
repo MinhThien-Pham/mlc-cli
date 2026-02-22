@@ -57,14 +57,13 @@ cmake ..
 make -j$(nproc)
 cd ..
 
-# Build wheels and copy to wheels directory
-mkdir -p "${WHEELS_DIR}"
+# # Build wheels and copy to wheels directory
+# mkdir -p "${WHEELS_DIR}"
 
-# Build TVM wheel
-cd python
-pip install build
-python -m build --wheel --outdir "${WHEELS_DIR}"
-cd ..
+# # Build TVM wheel
+# cd python
+# pip install build
+# python -m build --wheel --outdir "${WHEELS_DIR}"
+# cd ..
 
-echo "TVM wheels created in ${WHEELS_DIR}"
-
+# echo "TVM wheels created in ${WHEELS_DIR}"
