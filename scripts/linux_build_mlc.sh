@@ -55,6 +55,7 @@ else
 fi
 
 conda activate ${BUILD_VENV}
+CONDA_PYTHON="$(conda info --base)/envs/${BUILD_VENV}/bin/python"
 
 if [[ "$(uname)" == "Darwin" ]]; then
     NCORES=$(sysctl -n hw.ncpu)
@@ -76,8 +77,10 @@ printf "%s\n%s\n%s\n%s\n%s\n%s\nn\n%s\n%s\n\n\n" \
     "${FLASHINFER}" | python3 ../cmake/gen_cmake_config.py
 
 # Inject CUDA_ARCHITECTURES into config.cmake so cmake 3.28 sees it before enable_language(CUDA)
+# Disable Thrust due to known compilation failures with the mlc-ai/relax bundled TVM + NVCC 12.0
 if [[ "$CUDA" == "y" ]]; then
     echo "set(CMAKE_CUDA_ARCHITECTURES ${CUDA_ARCH} CACHE STRING \"CUDA architectures\" FORCE)" >> config.cmake
+    sed -i 's/set(USE_THRUST.*/set(USE_THRUST OFF)/' config.cmake
 fi
 if [[ "$CUDA" == "y" ]]; then
     echo "Configuring with CUDA support..."
@@ -126,8 +129,8 @@ cmake --build . --parallel ${NCORES}
 mkdir -p "${WHEELS_DIR}"
 
 cd ../python
-python -m pip install build
-python -m build --wheel --outdir "${WHEELS_DIR}"
+"${CONDA_PYTHON}" -m pip install build
+"${CONDA_PYTHON}" -m build --wheel --outdir "${WHEELS_DIR}"
 cd ../build
 
 echo "MLC-LLM wheel created in ${WHEELS_DIR}"
