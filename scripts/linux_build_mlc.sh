@@ -62,16 +62,40 @@ printf "%s\n%s\n%s\n%s\n%s\n%s\nn\n%s\n%s\n\n\n" \
 
 if [[ "$CUDA" == "y" ]]; then
     echo "Configuring with CUDA support..."
-    # Set CUDA environment variables only when CUDA is available
-    export PATH=/usr/local/cuda/bin:$PATH
-    export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
-    export CUDACXX=/usr/local/cuda/bin/nvcc
-    export CUDA_HOME=/usr/local/cuda
+    # Dynamically find nvcc
+    if command -v nvcc >/dev/null 2>&1; then
+        NVCC_PATH="$(command -v nvcc)"
+    elif [[ -x /usr/local/cuda/bin/nvcc ]]; then
+        NVCC_PATH="/usr/local/cuda/bin/nvcc"
+    elif [[ -x /usr/bin/nvcc ]]; then
+        NVCC_PATH="/usr/bin/nvcc"
+    else
+        echo "Error: nvcc not found. Please install the CUDA toolkit or add it to PATH."
+        exit 1
+    fi
+
+    # Resolve symlinks so /usr/bin/nvcc → /usr/local/cuda-*/bin/nvcc
+    # This prevents CUDA_HOME from becoming /usr on apt-installed CUDA setups
+    NVCC_REAL="$(readlink -f "${NVCC_PATH}" 2>/dev/null || true)"
+    NVCC_REAL="${NVCC_REAL:-${NVCC_PATH}}"
+
+    CUDA_BIN_DIR="$(dirname "${NVCC_REAL}")"
+    CUDA_HOME="$(dirname "${CUDA_BIN_DIR}")"
+
+    export PATH="${CUDA_BIN_DIR}:${PATH}"
+    export CUDACXX="${NVCC_REAL}"
+    export CUDA_HOME="${CUDA_HOME}"
+
+    # Only set LD_LIBRARY_PATH if lib64 exists (not always present on apt installs)
+    if [[ -d "${CUDA_HOME}/lib64" ]]; then
+        export LD_LIBRARY_PATH="${CUDA_HOME}/lib64:${LD_LIBRARY_PATH:-}"
+    fi
+
     echo "Using CUDA compute capability: ${CUDA_ARCH}"
     cmake .. \
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-        -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCH} \
-        -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc
+        -DCMAKE_CUDA_ARCHITECTURES="${CUDA_ARCH}" \
+        -DCMAKE_CUDA_COMPILER="${NVCC_REAL}"
 else
     echo "Building with CPU-only support..."
     cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5
