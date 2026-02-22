@@ -58,7 +58,7 @@ printf "%s\n%s\n%s\n%s\n%s\n%s\nn\n%s\n%s\n\n\n" \
     "${OPENCL}" \
     "${FLASHINFER}" | python3 ../cmake/gen_cmake_config.py
 
-if [[ "$CUDA" == true ]]; then
+if [[ "$CUDA" == "y" ]]; then
     echo "Configuring with CUDA support..."
     # Set CUDA environment variables only when CUDA is available
     export PATH=/usr/local/cuda/bin:$PATH
