@@ -12,7 +12,8 @@ OPEN_CL="${6:-n}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 WHEELS_DIR="${REPO_ROOT}/wheels"
-TVM_SOURCE_DIR="${REPO_ROOT}/tvm"
+# MLC-LLM should use its bundled TVM submodule (3rdparty/tvm), not standalone TVM
+TVM_SOURCE_DIR=""
 
 source "$(conda info --base)/etc/profile.d/conda.sh"
 
@@ -44,6 +45,10 @@ else
 fi
 
 # Check if mlc-llm directory exists
+# Set macOS deployment target to current OS version
+export MACOSX_DEPLOYMENT_TARGET=$(sw_vers -productVersion | cut -d. -f1)
+
+# clone from GitHub (or use existing)
 if [ ! -d "mlc-llm" ]; then
     echo "Cloning mlc-llm..."
     git clone --recursive https://github.com/mlc-ai/mlc-llm.git
@@ -66,7 +71,8 @@ printf "%s\n%s\n%s\n%s\n%s\n%s\n\n\n" \
     | python3 ../cmake/gen_cmake_config.py
 
 # build mlc_llm libraries
-cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5 && make -j4 && cd ..
+cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5 && make -j4
+cd ..
 
 # Build wheel and copy to wheels directory
 mkdir -p "${WHEELS_DIR}"

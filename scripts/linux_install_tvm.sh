@@ -2,13 +2,18 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+WHEELS_DIR="${REPO_ROOT}/wheels"
+
 source "$(conda info --base)/etc/profile.d/conda.sh"
 
 # Args
 CLI_VENV="${1:-mlc-cli-venv}"
 
+# Create environment if it doesn't exist
 if ! conda env list | awk '{print $1}' | grep -qx "${CLI_VENV}"; then
-    conda create -n "${CLI_VENV}" -c conda-forge \
+    conda create -y -n "${CLI_VENV}" -c conda-forge \
         "cmake>=3.24" \
         rust \
         git \
@@ -18,10 +23,20 @@ fi
 
 conda activate "${CLI_VENV}"
 
-# install TVM FFI (required C extension for TVM)
-pip install -e tvm/3rdparty/tvm-ffi
+# Check if Python version is correct, recreate if not
+PYTHON_VERSION=$(python --version | awk '{print $2}' | cut -d. -f1,2)
+if [ "$PYTHON_VERSION" != "3.13" ]; then
+    echo "Warning: Environment has Python $PYTHON_VERSION, but Python 3.13 is required. Recreating..."
+    conda deactivate
+    conda env remove -n "${CLI_VENV}" -y
+    conda create -y -n "${CLI_VENV}" -c conda-forge \
+        "cmake>=3.24" \
+        rust \
+        git \
+        python=3.13 \
+        psutil
+    conda activate "${CLI_VENV}"
+fi
 
-# install TVM Python package (editable install so it finds libs in build/)
-cd tvm/python
-pip install -e .
-cd ../..
+# Install pre-built wheels from wheels directory
+pip install --force-reinstall "${WHEELS_DIR}"/tvm-*.whl

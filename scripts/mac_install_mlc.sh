@@ -2,6 +2,10 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+WHEELS_DIR="${REPO_ROOT}/wheels"
+
 source "$(conda info --base)/etc/profile.d/conda.sh"
 
 # Args
@@ -18,13 +22,21 @@ fi
 
 conda activate "${CLI_VENV}"
 
-# install MLC Python package
-cd mlc-llm/python
-
-if [ -f requirements.txt ] && grep -q '^flashinfer-python==0\.4\.0$' requirements.txt; then
-  # remove flash infer for mac
-  sed -i '' -e '/^flashinfer-python==0\.4\.0$/d' requirements.txt
+# Verify Python version matches wheel requirement
+PYTHON_VERSION=$(python --version | awk '{print $2}' | cut -d. -f1,2)
+if [ "$PYTHON_VERSION" != "3.13" ]; then
+    echo "Error: mlc-cli-venv has Python $PYTHON_VERSION but wheel requires Python 3.13"
+    echo "Recreating environment with correct Python version..."
+    conda deactivate
+    conda env remove -n "${CLI_VENV}" -y
+    conda create -n "${CLI_VENV}" -c conda-forge \
+        "cmake>=3.24" \
+        rust \
+        git \
+        python=3.13 \
+        psutil -y
+    conda activate "${CLI_VENV}"
 fi
 
-pip install -e .
-cd ../..
+# Install pre-built MLC wheel from wheels directory
+pip install --force-reinstall "${WHEELS_DIR}"/mlc_llm-*.whl

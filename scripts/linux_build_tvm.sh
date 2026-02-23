@@ -5,12 +5,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 WHEELS_DIR="${REPO_ROOT}/wheels"
 CUDA_COMPUTE_CAPABILITY="${1:-86}"
+TVM_SOURCE="${2:-bundled}"  # bundled or custom
 
 source "$(conda info --base)/etc/profile.d/conda.sh"
 
 conda env remove -n tvm-build-venv || true
 conda create -y -n tvm-build-venv -c conda-forge \
-    "llvmdev=17" \
+    "llvmdev=19" \
     "cmake>=3.24" \
     git \
     zstd \
@@ -25,7 +26,8 @@ export DYLD_LIBRARY_PATH="$CONDA_PREFIX/lib:$DYLD_LIBRARY_PATH"
 if [ ! -d "tvm" ]; then
     git clone --recursive -b mlc https://github.com/mlc-ai/relax.git tvm
 fi
-cd tvm
+
+cd "${TVM_DIR}"
 # create the build directory
 rm -rf build && mkdir build && cd build
 # specify build requirements in `config.cmake`

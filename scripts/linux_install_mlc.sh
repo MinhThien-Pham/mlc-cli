@@ -2,6 +2,10 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+WHEELS_DIR="${REPO_ROOT}/wheels"
+
 source "$(conda info --base)/etc/profile.d/conda.sh"
 
 # Args

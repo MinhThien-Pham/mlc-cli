@@ -27,6 +27,7 @@ type Platform struct {
 	CuBLAS          string
 	FlashInfer      string
 	CUDAArch        string
+	TVMSource       string
 }
 
 func (p *Platform) build(pkg string) {
@@ -42,9 +43,9 @@ func (p *Platform) build(pkg string) {
 		}
 	} else if pkg == "tvm" {
 		if p.OperatingSystem == "mac" {
-			cmd = exec.Command("bash", "scripts/"+p.OperatingSystem+"_build_"+pkg+".sh", p.TVMBuildEnv)
+			cmd = exec.Command("bash", "scripts/"+p.OperatingSystem+"_build_"+pkg+".sh", p.TVMBuildEnv, p.TVMSource)
 		} else {
-			cmd = exec.Command("bash", "scripts/"+p.OperatingSystem+"_build_"+pkg+".sh", p.CUDAArch)
+			cmd = exec.Command("bash", "scripts/"+p.OperatingSystem+"_build_"+pkg+".sh", p.CUDAArch, p.TVMSource)
 		}
 	} else {
 		cmd = exec.Command("bash", "scripts/"+p.OperatingSystem+"_build_"+pkg+".sh", p.TVMBuildEnv)
@@ -155,6 +156,22 @@ func (p *Platform) ConfigureGitHubRepo() {
 }
 
 func (p *Platform) ConfigureBuildOptions() {
+	// Prompt for TVM source selection
+	tvmSourcePrompt := promptui.Select{
+		Label: "Select TVM source",
+		Items: []string{"Use bundled TVM (from mlc-llm/3rdparty)", "Use custom TVM (from repo_root/tvm)"},
+	}
+	_, tvmSourceSelection, err := tvmSourcePrompt.Run()
+	if err != nil {
+		handlePromptError(err)
+	}
+
+	if tvmSourceSelection == "Use custom TVM (from repo_root/tvm)" {
+		p.TVMSource = "custom"
+	} else {
+		p.TVMSource = "bundled"
+	}
+
 	if p.OperatingSystem == "mac" {
 		p.CUDA = "n"
 		p.ROCM = "n"
@@ -261,7 +278,7 @@ func selectLocalModel() string {
 	}
 
 	modelSelectPrompt := promptui.Select{
-		Label: "Select a model from models/ directory",
+		Label: "\\Select a model from models/ directory",
 		Items: modelDirs,
 	}
 	_, modelName, err := modelSelectPrompt.Run()
@@ -417,5 +434,6 @@ func CreatePlatform() Platform {
 		CuBLAS:          "",
 		FlashInfer:      "",
 		CUDAArch:        "",
+		TVMSource:       "",
 	}
 }
