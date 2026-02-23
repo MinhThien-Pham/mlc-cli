@@ -23,3 +23,8 @@ cd mlc-llm/python
 
 pip install -e .
 cd ../..
+
+# flashinfer-python==0.4.0 (pulled in by mlc_llm) pins apache-tvm-ffi==0.1.0b15
+# which downgrades the version installed by linux_install_tvm.sh and breaks the
+# tvm Python package. Reinstall the correct version from the local tvm source.
+pip install --force-reinstall -e tvm/3rdparty/tvm-ffi
