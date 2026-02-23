@@ -5,12 +5,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 WHEELS_DIR="${REPO_ROOT}/wheels"
 CUDA_COMPUTE_CAPABILITY="${1:-86}"
+TVM_SOURCE="${2:-bundled}"  # bundled or custom
 
 source "$(conda info --base)/etc/profile.d/conda.sh"
 
 conda env remove -n tvm-build-venv || true
 conda create -y -n tvm-build-venv -c conda-forge \
-    "llvmdev=17" \
+    "llvmdev=19" \
     "cmake>=3.24" \
     git \
     zstd \
@@ -21,11 +22,26 @@ conda activate tvm-build-venv
 # Set library path for cmake to find zstd
 export DYLD_LIBRARY_PATH="$CONDA_PREFIX/lib:$DYLD_LIBRARY_PATH"
 
-# clone from GitHub (or use existing)
-if [ ! -d "tvm" ]; then
-    git clone --recursive https://github.com/apache/tvm.git
+# Determine TVM directory based on source selection
+if [ "${TVM_SOURCE}" = "custom" ]; then
+    TVM_DIR="${REPO_ROOT}/tvm"
+    echo "Using custom TVM from ${TVM_DIR}"
+    if [ ! -d "${TVM_DIR}" ]; then
+        echo "Error: Custom TVM directory not found at ${TVM_DIR}"
+        echo "Please clone TVM to ${TVM_DIR} or select bundled TVM option"
+        exit 1
+    fi
+else
+    TVM_DIR="${REPO_ROOT}/mlc-llm/3rdparty/tvm"
+    echo "Using bundled TVM from ${TVM_DIR}"
+    if [ ! -d "${TVM_DIR}" ]; then
+        echo "Error: Bundled TVM directory not found at ${TVM_DIR}"
+        echo "Please ensure mlc-llm is properly initialized with submodules"
+        exit 1
+    fi
 fi
-cd tvm
+
+cd "${TVM_DIR}"
 # create the build directory
 rm -rf build && mkdir build && cd build
 # specify build requirements in `config.cmake`
@@ -59,9 +75,12 @@ cd ..
 # Build wheels and copy to wheels directory
 mkdir -p "${WHEELS_DIR}"
 
-# Clean build directory to avoid Make/Ninja conflict
-# The Python wheel build will reconfigure with Ninja
-rm -rf build
+# Clean CMake cache and Makefiles to avoid Make/Ninja conflict
+# but keep the compiled libraries in build/
+cd build
+rm -f Makefile CMakeCache.txt cmake_install.cmake
+rm -rf CMakeFiles
+cd ..
 
 # Build TVM wheel from the tvm root directory (where pyproject.toml is)
 pip install build

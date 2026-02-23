@@ -2,6 +2,10 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+WHEELS_DIR="${REPO_ROOT}/wheels"
+
 source "$(conda info --base)/etc/profile.d/conda.sh"
 
 # Args
@@ -18,8 +22,5 @@ fi
 
 conda activate "${CLI_VENV}"
 
-# install MLC Python package
-cd mlc-llm/python
-
-pip install -e .
-cd ../..
+# Install pre-built MLC wheel from wheels directory
+pip install --force-reinstall "${WHEELS_DIR}"/mlc_llm-*.whl
