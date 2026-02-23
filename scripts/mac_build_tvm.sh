@@ -44,16 +44,19 @@ sed -i '' 's/set(USE_METAL .*/set(USE_METAL ON)/' config.cmake
 sed -i '' 's/set(USE_VULKAN .*/set(USE_VULKAN OFF)/' config.cmake
 sed -i '' 's/set(USE_OPENCL .*/set(USE_OPENCL OFF)/' config.cmake
 
-cmake .. && make -j4 && cd ..
+cmake .. && make -j4
+cd ..
 
 # Build wheels and copy to wheels directory
 mkdir -p "${WHEELS_DIR}"
 
-# Build TVM wheel
-cd python
+# Clean build directory to avoid Make/Ninja conflict
+# The Python wheel build will reconfigure with Ninja
+rm -rf build
+
+# Build TVM wheel from the tvm root directory (where pyproject.toml is)
 pip install build
 python -m build --wheel --outdir "${WHEELS_DIR}"
-cd ..
 
 echo "TVM wheels created in ${WHEELS_DIR}"
 

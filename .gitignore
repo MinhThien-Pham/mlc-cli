@@ -1,4 +1,5 @@
 /mlc-llm/
+/tvm/
 /models/
 /wheels/*.whl
 .env
