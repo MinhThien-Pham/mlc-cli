@@ -4,10 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	"github.com/manifoldco/promptui"
+
+	"mlc-cli/internal/process"
 )
 
 // Platform holds all configuration for the build/run environment
@@ -37,7 +38,7 @@ type Platform struct {
 
 // build executes the build script for the specified package
 func (p *Platform) build(pkg string) {
-	var cmd *exec.Cmd
+	var args []string
 	scriptPath := "scripts/" + p.OperatingSystem + "_build_" + pkg + ".sh"
 
 	// Check if script exists
@@ -48,27 +49,28 @@ func (p *Platform) build(pkg string) {
 
 	if pkg == "mlc" {
 		if p.OperatingSystem == "mac" {
-			cmd = exec.Command("bash", scriptPath,
-				p.MLCBuildEnv, p.CUDA, p.ROCM, p.Vulkan, p.Metal, p.OpenCL, p.TVMSource, p.BuildWheels, p.ForceClone)
+			args = []string{scriptPath,
+				p.MLCBuildEnv, p.CUDA, p.ROCM, p.Vulkan, p.Metal, p.OpenCL, p.TVMSource, p.BuildWheels, p.ForceClone}
 		} else {
-			cmd = exec.Command("bash", scriptPath,
-				p.MLCBuildEnv, p.CUDA, p.Cutlass, p.CuBLAS, p.ROCM, p.Vulkan, p.OpenCL, p.FlashInfer, p.CUDAArch, p.GitHubRepo, p.TVMSource, p.BuildWheels, p.ForceClone)
+			args = []string{scriptPath,
+				p.MLCBuildEnv, p.CUDA, p.Cutlass, p.CuBLAS, p.ROCM, p.Vulkan, p.OpenCL, p.FlashInfer, p.CUDAArch, p.GitHubRepo, p.TVMSource, p.BuildWheels, p.ForceClone}
 		}
 	} else if pkg == "tvm" {
 		if p.OperatingSystem == "mac" {
-			cmd = exec.Command("bash", scriptPath, p.TVMBuildEnv, p.TVMSource, p.BuildWheels, p.ForceClone)
+			args = []string{scriptPath, p.TVMBuildEnv, p.TVMSource, p.BuildWheels, p.ForceClone}
 		} else {
-			cmd = exec.Command("bash", scriptPath, p.CUDAArch, p.TVMSource, p.BuildWheels, p.ForceClone)
+			args = []string{scriptPath, p.CUDAArch, p.TVMSource, p.BuildWheels, p.ForceClone}
 		}
 	} else {
-		cmd = exec.Command("bash", scriptPath, p.TVMBuildEnv)
+		args = []string{scriptPath, p.TVMBuildEnv}
 	}
 
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
 	fmt.Printf("\n📦 Building %s...\n", pkg)
-	if err := cmd.Run(); err != nil {
+	err := process.Run("bash", args,
+		process.WithStdout(os.Stdout),
+		process.WithStderr(os.Stderr),
+	)
+	if err != nil {
 		reportError("%s build failed", err)
 		return
 	}
@@ -77,7 +79,7 @@ func (p *Platform) build(pkg string) {
 
 // install executes the install script for the specified package
 func (p *Platform) install(pkg string) {
-	var cmd *exec.Cmd
+	var args []string
 	scriptPath := "scripts/" + p.OperatingSystem + "_install_" + pkg + ".sh"
 
 	switch pkg {
@@ -94,20 +96,21 @@ func (p *Platform) install(pkg string) {
 			fmt.Println(Warning + "CUDA install script not found, skipping.")
 			return
 		}
-		cmd = exec.Command("bash", scriptPath)
+		args = []string{scriptPath}
 	case "tvm", "wheels":
-		cmd = exec.Command("bash", scriptPath, p.CliEnv)
+		args = []string{scriptPath, p.CliEnv}
 	case "mlc":
-		cmd = exec.Command("bash", scriptPath, p.CliEnv, p.TVMSource, p.InstallMode)
+		args = []string{scriptPath, p.CliEnv, p.TVMSource, p.InstallMode}
 	default:
-		cmd = exec.Command("bash", scriptPath)
+		args = []string{scriptPath}
 	}
 
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
 	fmt.Printf("\n📥 Installing %s...\n", pkg)
-	if err := cmd.Run(); err != nil {
+	err := process.Run("bash", args,
+		process.WithStdout(os.Stdout),
+		process.WithStderr(os.Stderr),
+	)
+	if err != nil {
 		reportError("%s installation failed", err)
 		return
 	}
@@ -161,11 +164,12 @@ func (p *Platform) run() {
 	}
 
 	fmt.Printf("\n🚀 Running model on %s...\n", p.Device)
-	cmd := exec.Command("bash", scriptPath, p.CliEnv, p.ModelURL, p.ModelName, p.Device, overrides, modelLibPath)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+	err = process.Run("bash", []string{scriptPath, p.CliEnv, p.ModelURL, p.ModelName, p.Device, overrides, modelLibPath},
+		process.WithStdin(os.Stdin),
+		process.WithStdout(os.Stdout),
+		process.WithStderr(os.Stderr),
+	)
+	if err != nil {
 		reportError("Model run failed", err)
 	}
 }
@@ -355,8 +359,7 @@ func (p *Platform) ConfigureModel() {
 
 // CheckAndInstallConda verifies conda is installed and offers to install if not
 func CheckAndInstallConda(operatingSystem string) {
-	cmd := exec.Command("conda", "--version")
-	err := cmd.Run()
+	err := process.Run("conda", []string{"--version"})
 
 	if err != nil {
 		installPrompt := promptui.Select{
@@ -375,10 +378,11 @@ func CheckAndInstallConda(operatingSystem string) {
 				reportError("Conda install script not found: %s", err)
 				return
 			}
-			installCmd := exec.Command("bash", scriptPath)
-			installCmd.Stdout = os.Stdout
-			installCmd.Stderr = os.Stderr
-			if err := installCmd.Run(); err != nil {
+			err := process.Run("bash", []string{scriptPath},
+				process.WithStdout(os.Stdout),
+				process.WithStderr(os.Stderr),
+			)
+			if err != nil {
 				reportError("Conda installation failed", err)
 			}
 		} else {
@@ -389,8 +393,7 @@ func CheckAndInstallConda(operatingSystem string) {
 
 // CheckCudaInstalled checks if CUDA is installed
 func CheckCudaInstalled() bool {
-	cmd := exec.Command("nvcc", "--version")
-	err := cmd.Run()
+	err := process.Run("nvcc", []string{"--version"})
 	return err == nil
 }
 

@@ -5,11 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/manifoldco/promptui"
+
+	"mlc-cli/internal/process"
 )
 
 const (
@@ -296,11 +297,12 @@ func runRunCmd(args []string) {
 	overrides := getProfileOverrides(*profile)
 
 	fmt.Printf("🚀 Running model (non-interactive) on %s...\n", deviceVal)
-	cmd := exec.Command("bash", "scripts/"+*osFlag+"_run_model.sh", *cliEnv, *modelURL, *modelName, deviceVal, overrides, *modelLib)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+	err := process.Run("bash", []string{"scripts/" + *osFlag + "_run_model.sh", *cliEnv, *modelURL, *modelName, deviceVal, overrides, *modelLib},
+		process.WithStdin(os.Stdin),
+		process.WithStdout(os.Stdout),
+		process.WithStderr(os.Stderr),
+	)
+	if err != nil {
 		cliError("Run failed", err)
 	}
 }
@@ -345,10 +347,11 @@ func runCompileCmd(args []string) {
 	}
 
 	fmt.Printf("🔧 Compiling model [%s] quant=[%s] device=[%s] (non-interactive)...\n", *model, *quant, deviceVal)
-	cmd := exec.Command("bash", "scripts/"+*osFlag+"_compile_model.sh", *cliEnv, *model, *quant, deviceVal, outputPath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+	err := process.Run("bash", []string{"scripts/" + *osFlag + "_compile_model.sh", *cliEnv, *model, *quant, deviceVal, outputPath},
+		process.WithStdout(os.Stdout),
+		process.WithStderr(os.Stderr),
+	)
+	if err != nil {
 		cliError("Compilation failed", err)
 	}
 	fmt.Println("\n" + Success + "Model compiled! Library saved to " + outputPath)
@@ -390,28 +393,30 @@ func runQuantizeCmd(args []string) {
 
 	fmt.Printf("🚀 Quantizing [%s] with [%s] on [%s] (non-interactive)...\n", *model, *quant, deviceVal)
 
-	cmd := exec.Command("conda", "run", "--no-capture-output", "-n", *cliEnv,
+	err := process.Run("conda", []string{"run", "--no-capture-output", "-n", *cliEnv,
 		"python", "-m", "mlc_llm", "convert_weight",
 		*model,
 		"--quantization", *quant,
 		"--device", deviceVal,
-		"-o", outputPath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+		"-o", outputPath},
+		process.WithStdout(os.Stdout),
+		process.WithStderr(os.Stderr),
+	)
+	if err != nil {
 		cliError("Quantization failed", err)
 	}
 
 	fmt.Println("\n📄 Generating config...")
-	cmdConfig := exec.Command("conda", "run", "--no-capture-output", "-n", *cliEnv,
+	errConfig := process.Run("conda", []string{"run", "--no-capture-output", "-n", *cliEnv,
 		"python", "-m", "mlc_llm", "gen_config", *model,
 		"--quantization", *quant,
 		"--conv-template", *template,
-		"-o", outputPath)
-	cmdConfig.Stdout = os.Stdout
-	cmdConfig.Stderr = os.Stderr
-	if err := cmdConfig.Run(); err != nil {
-		cliError("Config generation failed", err)
+		"-o", outputPath},
+		process.WithStdout(os.Stdout),
+		process.WithStderr(os.Stderr),
+	)
+	if errConfig != nil {
+		cliError("Config generation failed", errConfig)
 	}
 
 	fmt.Println("\n" + Success + "Quantization complete! Model saved to " + outputPath)
@@ -419,7 +424,7 @@ func runQuantizeCmd(args []string) {
 
 // detectOS returns the operating system type
 func detectOS() string {
-	platform, err := exec.Command("uname").Output()
+	platform, err := process.Output("uname", nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: Could not detect OS: %v, defaulting to linux\n", err)
 		return "linux"
@@ -566,32 +571,32 @@ func promptQuantizeModel(platform *Platform) {
 
 	fmt.Printf("\n🚀 Starting Quantization [%s] using env [%s] on device [%s]...\n", quantCode, platform.CliEnv, platform.Device)
 
-	cmd := exec.Command("conda", "run", "--no-capture-output", "-n", platform.CliEnv,
+	err = process.Run("conda", []string{"run", "--no-capture-output", "-n", platform.CliEnv,
 		"python", "-m", "mlc_llm", "convert_weight",
 		modelPath,
 		"--quantization", quantCode,
 		"--device", platform.Device,
-		"-o", outputDir)
+		"-o", outputDir},
+		process.WithStdout(os.Stdout),
+		process.WithStderr(os.Stderr),
+	)
 
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
+	if err != nil {
 		cliError("Quantization failed", err)
 	}
 
 	fmt.Println("\n📄 Generating config...")
-	cmdConfig := exec.Command("conda", "run", "--no-capture-output", "-n", platform.CliEnv,
+	errConfig := process.Run("conda", []string{"run", "--no-capture-output", "-n", platform.CliEnv,
 		"python", "-m", "mlc_llm", "gen_config", modelPath,
 		"--quantization", quantCode,
 		"--conv-template", convTemplate,
-		"-o", outputDir)
+		"-o", outputDir},
+		process.WithStdout(os.Stdout),
+		process.WithStderr(os.Stderr),
+	)
 
-	cmdConfig.Stdout = os.Stdout
-	cmdConfig.Stderr = os.Stderr
-
-	if err := cmdConfig.Run(); err != nil {
-		cliError("Config generation failed", err)
+	if errConfig != nil {
+		cliError("Config generation failed", errConfig)
 	}
 
 	fmt.Println("\n" + Success + "Quantization Complete! Model saved to " + outputDir)
@@ -689,12 +694,13 @@ func promptCompileModel(platform *Platform) {
 
 	fmt.Printf("\n🔧 Compiling model [%s] with quantization [%s] for device [%s]...\n", modelPath, quantCode, platform.Device)
 
-	cmd := exec.Command("bash", "scripts/"+platform.OperatingSystem+"_compile_model.sh",
-		platform.CliEnv, modelPath, quantCode, platform.Device, outputPath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	err = process.Run("bash", []string{"scripts/" + platform.OperatingSystem + "_compile_model.sh",
+		platform.CliEnv, modelPath, quantCode, platform.Device, outputPath},
+		process.WithStdout(os.Stdout),
+		process.WithStderr(os.Stderr),
+	)
 
-	if err := cmd.Run(); err != nil {
+	if err != nil {
 		cliError("Compilation failed", err)
 	}
 
